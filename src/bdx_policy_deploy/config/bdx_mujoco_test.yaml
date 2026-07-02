@@ -1,0 +1,108 @@
+bdx_policy_node:
+  ros__parameters:
+    policy_path: package://bdx_policy_deploy/assets/policies/model_2850.onnx
+    dry_run: false
+    actuator_mode: position
+    policy_trigger_mode: imu_decimation
+    policy_decimation: 4
+
+    policy_rate_hz: 50.0
+    action_clip: 100.0
+    action_scale: 0.5
+    cmd_timeout_s: 0.2
+    sensor_timeout_s: 0.1
+    max_abs_roll_pitch_rad: 0.9
+    max_joint_velocity_rad_s: 50.0
+    publish_debug: true
+    require_enable: false
+    fault_on_target_limit: false
+    fault_on_cmd_timeout: false
+    zero_command_on_cmd_timeout: false
+
+    joint_state_topic: /joint_states
+    imu_topic: /imu/data
+    cmd_vel_topic: /cmd_vel
+    target_joint_state_topic: /bdx_policy/target_joint_states
+    diagnostics_topic: /bdx_policy/diagnostics
+    observation_topic: /bdx_policy/debug/observation
+    raw_action_topic: /bdx_policy/debug/raw_action
+    action_topic: /bdx_policy/debug/action
+    target_debug_topic: /bdx_policy/debug/target_joint_pos
+
+    joint_names:
+      - Left_Hip_Yaw
+      - Right_Hip_Yaw
+      - Left_Hip_Roll
+      - Right_Hip_Roll
+      - Left_Hip_Pitch
+      - Right_Hip_Pitch
+      - Left_Knee
+      - Right_Knee
+      - Left_Ankle
+      - Right_Ankle
+    default_joint_pos: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+    joint_lower_limits:
+      [-0.2617993877991494, -0.2617993877991494, -0.2617993877991494, -0.3490658503988659,
+       -1.0471975511965976, -0.6981317007977318, -0.9599310885968813, -1.3089969389957472,
+       -0.785, -1.2217304763960306]
+    joint_upper_limits:
+      [0.2617993877991494, 0.2617993877991494, 0.3490658503988659, 0.2617993877991494,
+       0.6981317007977318, 1.0471975511965976, 1.3089969389957472, 0.9599310885968813,
+       1.2217304763960306, 0.785]
+    safe_joint_lower_limits:
+      [-0.2617993877991494, -0.2617993877991494, -0.2617993877991494, -0.3490658503988659,
+       -1.0471975511965976, -0.6981317007977318, -0.9599310885968813, -1.3089969389957472,
+       -0.785, -1.2217304763960306]
+    safe_joint_upper_limits:
+      [0.2617993877991494, 0.2617993877991494, 0.3490658503988659, 0.2617993877991494,
+       0.6981317007977318, 1.0471975511965976, 1.3089969389957472, 0.9599310885968813,
+       1.2217304763960306, 0.785]
+
+    command_lower_limits: [-0.4, -0.4, -1.0]
+    command_upper_limits: [0.7, 0.4, 1.0]
+
+bdx_mujoco_body_node:
+  ros__parameters:
+    xml_path: package://bdx_policy_deploy/assets/mujoco/xmls/scene.xml
+    viewer: false
+    control_mode: position
+    sim_dt: 0.005
+    publish_rate_hz: 200.0
+    base_height: 0.33
+    reset_on_fall: false
+    fall_height: 0.18
+    target_timeout_s: 0.2
+
+    joint_state_topic: /joint_states
+    imu_topic: /imu/data
+    cmd_vel_topic: /cmd_vel
+    target_joint_state_topic: /bdx_policy/target_joint_states
+    sim_state_topic: /bdx_mujoco/debug/state
+
+    publish_cmd_vel: true
+    command_rate_hz: 20.0
+    command: [0.2, 0.0, 0.0]
+    command_x: 0.2
+    command_y: 0.0
+    command_yaw: 0.0
+    foot_friction: 0.6
+    floor_friction: 0.6
+    torsional_friction: 0.005
+    rolling_friction: 0.0001
+
+    joint_names:
+      - Left_Hip_Yaw
+      - Right_Hip_Yaw
+      - Left_Hip_Roll
+      - Right_Hip_Roll
+      - Left_Hip_Pitch
+      - Right_Hip_Pitch
+      - Left_Knee
+      - Right_Knee
+      - Left_Ankle
+      - Right_Ankle
+    default_joint_pos: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    kp: [80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 40.0, 40.0]
+    kd: [10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 2.0, 2.0]
+    effort_limits: [42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 11.9, 11.9]

@@ -1,0 +1,69 @@
+bdx_policy_node:
+  ros__parameters:
+    policy_path: package://bdx_policy_deploy/assets/policies/model_2850.onnx
+    dry_run: true
+    actuator_mode: position
+
+    policy_rate_hz: 50.0
+    control_rate_hz: 200.0
+    action_clip: 1.0
+    action_scale: 0.5
+    cmd_timeout_s: 0.2
+    sensor_timeout_s: 0.05
+    max_abs_roll_pitch_rad: 0.7
+    max_joint_velocity_rad_s: 25.0
+    torque_ramp_time_s: 2.0
+    publish_debug: true
+    require_enable: false
+
+    joint_state_topic: /joint_states
+    imu_topic: /imu/data
+    cmd_vel_topic: /cmd_vel
+    enable_topic: ""
+    target_joint_state_topic: /bdx_policy/target_joint_states
+    torque_command_topic: /bdx_policy/torque_cmd
+    diagnostics_topic: /bdx_policy/diagnostics
+    observation_topic: /bdx_policy/debug/observation
+    raw_action_topic: /bdx_policy/debug/raw_action
+    action_topic: /bdx_policy/debug/action
+    target_debug_topic: /bdx_policy/debug/target_joint_pos
+    torque_debug_topic: /bdx_policy/debug/torque
+
+    joint_names:
+      - Left_Hip_Yaw
+      - Right_Hip_Yaw
+      - Left_Hip_Roll
+      - Right_Hip_Roll
+      - Left_Hip_Pitch
+      - Right_Hip_Pitch
+      - Left_Knee
+      - Right_Knee
+      - Left_Ankle
+      - Right_Ankle
+    default_joint_pos: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+    joint_lower_limits:
+      [-0.2617993877991494, -0.2617993877991494, -0.2617993877991494, -0.3490658503988659,
+       -1.0471975511965976, -0.6981317007977318, -0.9599310885968813, -1.3089969389957472,
+       -0.785, -1.2217304763960306]
+    joint_upper_limits:
+      [0.2617993877991494, 0.2617993877991494, 0.3490658503988659, 0.2617993877991494,
+       0.6981317007977318, 1.0471975511965976, 1.3089969389957472, 0.9599310885968813,
+       1.2217304763960306, 0.785]
+    safe_joint_lower_limits:
+      [-0.2617993877991494, -0.2617993877991494, -0.2617993877991494, -0.3490658503988659,
+       -1.0471975511965976, -0.6981317007977318, -0.9599310885968813, -1.3089969389957472,
+       -0.785, -1.2217304763960306]
+    safe_joint_upper_limits:
+      [0.2617993877991494, 0.2617993877991494, 0.3490658503988659, 0.2617993877991494,
+       0.6981317007977318, 1.0471975511965976, 1.3089969389957472, 0.9599310885968813,
+       1.2217304763960306, 0.785]
+
+    kp: [80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 40.0, 40.0]
+    kd: [10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 2.0, 2.0]
+    effort_limits: [42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 11.9, 11.9]
+
+    # Training/play command envelope from bdx_locomotion/bdx_env_cfg.py.
+    # Use a stricter robot-specific override before commanding real hardware.
+    command_lower_limits: [-0.4, -0.4, -1.0]
+    command_upper_limits: [0.7, 0.4, 1.0]

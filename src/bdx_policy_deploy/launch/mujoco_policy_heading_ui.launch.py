@@ -1,0 +1,78 @@
+from pathlib import Path
+
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
+
+
+def generate_launch_description() -> LaunchDescription:
+    package_share = Path(get_package_share_directory("bdx_policy_deploy"))
+    default_config = package_share / "config" / "bdx_mujoco_test.yaml"
+    default_policy = package_share / "assets" / "policies" / "model_2850.onnx"
+    default_xml = package_share / "assets" / "mujoco" / "xmls" / "scene.xml"
+
+    config = LaunchConfiguration("config")
+    policy_path = LaunchConfiguration("policy_path")
+    xml_path = LaunchConfiguration("xml_path")
+    viewer = LaunchConfiguration("viewer")
+    initial_linear_x = LaunchConfiguration("initial_linear_x")
+    initial_linear_y = LaunchConfiguration("initial_linear_y")
+    initial_heading_deg = LaunchConfiguration("initial_heading_deg")
+    initial_policy_mode = LaunchConfiguration("initial_policy_mode")
+
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument("config", default_value=str(default_config)),
+            DeclareLaunchArgument("policy_path", default_value=str(default_policy)),
+            DeclareLaunchArgument("xml_path", default_value=str(default_xml)),
+            DeclareLaunchArgument("viewer", default_value="true"),
+            DeclareLaunchArgument("initial_linear_x", default_value="0.0"),
+            DeclareLaunchArgument("initial_linear_y", default_value="0.0"),
+            DeclareLaunchArgument("initial_heading_deg", default_value="0.0"),
+            DeclareLaunchArgument("initial_policy_mode", default_value="disabled"),
+            Node(
+                package="bdx_policy_deploy",
+                executable="mujoco_body_node",
+                name="bdx_mujoco_body_node",
+                output="screen",
+                parameters=[
+                    config,
+                    {
+                        "xml_path": xml_path,
+                        "viewer": viewer,
+                        "publish_cmd_vel": False,
+                        "initial_policy_mode": initial_policy_mode,
+                    },
+                ],
+            ),
+            Node(
+                package="bdx_policy_deploy",
+                executable="policy_node",
+                name="bdx_policy_node",
+                output="screen",
+                parameters=[
+                    config,
+                    {
+                        "policy_path": policy_path,
+                        "initial_policy_mode": initial_policy_mode,
+                    },
+                ],
+            ),
+            Node(
+                package="bdx_policy_deploy",
+                executable="pygame_heading_command_node",
+                name="bdx_pygame_heading_command_node",
+                output="screen",
+                parameters=[
+                    {
+                        "initial_linear_x": initial_linear_x,
+                        "initial_linear_y": initial_linear_y,
+                        "initial_heading_deg": initial_heading_deg,
+                        "initial_policy_mode": initial_policy_mode,
+                    }
+                ],
+            ),
+        ]
+    )

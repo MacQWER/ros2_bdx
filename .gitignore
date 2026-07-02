@@ -1,0 +1,48 @@
+# Colcon / ROS 2 generated output
+/build/
+/install/
+/log/
+
+# Local ROS logs and bags
+/.ros/
+rosbag2_*/
+*.bag
+*.db3
+
+# Python caches and test artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# C/C++ and CMake byproducts
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+Testing/
+
+# Editor / OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Local agent/tool state
+/.agents/
+/.codex/
+
+# Runtime scratch files
+*.log
+*.tmp
+*.bak
+
