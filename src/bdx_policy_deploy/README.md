@@ -65,6 +65,20 @@ The joint tuner publishes:
 ```
 
 MuJoCo tracks those targets using the PD logic inside `mujoco_body_node`.
+The MuJoCo viewer highlights the IMU site by default with a yellow marker, an `IMU` label, and RGB axes:
+
+```text
+Red: IMU +X
+Green: IMU +Y
+Blue: IMU +Z
+```
+
+You can tune or hide the IMU visual:
+
+```bash
+ros2 launch bdx_policy_deploy mujoco_joint_pose_tune.launch.py \
+  show_imu_visual:=true imu_axis_length:=0.08 imu_axis_radius:=0.004 imu_marker_radius:=0.018
+```
 
 Slider UI:
 
@@ -125,4 +139,3 @@ ros2 topic pub --once /bdx_policy/mode std_msgs/msg/String "{data: policy}"
 ```
 
 `/bdx_mujoco/debug/base_state` index `3` is `base_z`.
-

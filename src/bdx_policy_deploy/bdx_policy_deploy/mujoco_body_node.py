@@ -109,6 +109,10 @@ class MuJoCoBodyNode(Node):
         self.declare_parameter("torsional_friction", 0.005)
         self.declare_parameter("rolling_friction", 0.0001)
         self.declare_parameter("initial_policy_mode", "policy")
+        self.declare_parameter("show_imu_visual", False)
+        self.declare_parameter("imu_axis_length", 0.08)
+        self.declare_parameter("imu_axis_radius", 0.004)
+        self.declare_parameter("imu_marker_radius", 0.018)
 
         self.declare_parameter("joint_state_topic", "/joint_states")
         self.declare_parameter("imu_topic", "/imu/data")
@@ -155,6 +159,10 @@ class MuJoCoBodyNode(Node):
         self.policy_mode = str(self.get_parameter("initial_policy_mode").value)
         if self.policy_mode not in VALID_POLICY_MODES:
             raise ValueError(f"initial_policy_mode must be one of {VALID_POLICY_MODES}")
+        self.show_imu_visual = bool(self.get_parameter("show_imu_visual").value)
+        self.imu_axis_length = self._positive_float_parameter("imu_axis_length")
+        self.imu_axis_radius = self._positive_float_parameter("imu_axis_radius")
+        self.imu_marker_radius = self._positive_float_parameter("imu_marker_radius")
 
         self.joint_state_topic = str(self.get_parameter("joint_state_topic").value)
         self.imu_topic = str(self.get_parameter("imu_topic").value)
@@ -311,6 +319,90 @@ class MuJoCoBodyNode(Node):
         self.mujoco.mju_mat2Quat(quat_wxyz, self.data.site_xmat[site_id])
         return np.array([quat_wxyz[1], quat_wxyz[2], quat_wxyz[3], quat_wxyz[0]], dtype=np.float32)
 
+    def _append_viewer_geom(
+        self,
+        geom_type: Any,
+        size: np.ndarray,
+        pos: np.ndarray,
+        mat: np.ndarray,
+        rgba: np.ndarray,
+        label: str = "",
+    ) -> Any | None:
+        if self.viewer_handle is None or self.viewer_handle.user_scn is None:
+            return None
+        scene = self.viewer_handle.user_scn
+        if scene.ngeom >= scene.maxgeom:
+            return None
+        geom = scene.geoms[scene.ngeom]
+        self.mujoco.mjv_initGeom(geom, geom_type, size, pos, mat, rgba)
+        geom.category = self.mujoco.mjtCatBit.mjCAT_DECOR
+        geom.label = label
+        scene.ngeom += 1
+        return geom
+
+    def _update_viewer_debug_visuals(self) -> None:
+        if self.viewer_handle is None or self.viewer_handle.user_scn is None:
+            return
+
+        scene = self.viewer_handle.user_scn
+        scene.ngeom = 0
+        if not self.show_imu_visual:
+            return
+
+        imu_pos = self.data.site_xpos[self.imu_site_id].astype(np.float64).copy()
+        imu_rot = (
+            self.data.site_xmat[self.imu_site_id]
+            .reshape(3, 3)
+            .astype(np.float64)
+            .copy()
+        )
+        identity = np.eye(3, dtype=np.float64).reshape(9)
+        marker_size = np.full(3, self.imu_marker_radius, dtype=np.float64)
+        label_pos = imu_pos + np.array(
+            [0.0, 0.0, self.imu_marker_radius * 2.0],
+            dtype=np.float64,
+        )
+
+        self._append_viewer_geom(
+            self.mujoco.mjtGeom.mjGEOM_SPHERE,
+            marker_size,
+            imu_pos,
+            identity,
+            np.array([1.0, 0.9, 0.05, 1.0], dtype=np.float32),
+            "IMU",
+        )
+        self._append_viewer_geom(
+            self.mujoco.mjtGeom.mjGEOM_LABEL,
+            np.array([0.0, 0.0, 0.0], dtype=np.float64),
+            label_pos,
+            identity,
+            np.array([1.0, 1.0, 1.0, 1.0], dtype=np.float32),
+            "IMU",
+        )
+
+        axis_colors = (
+            np.array([1.0, 0.05, 0.05, 1.0], dtype=np.float32),
+            np.array([0.05, 0.85, 0.05, 1.0], dtype=np.float32),
+            np.array([0.1, 0.35, 1.0, 1.0], dtype=np.float32),
+        )
+        for axis_index, color in enumerate(axis_colors):
+            endpoint = imu_pos + imu_rot[:, axis_index] * self.imu_axis_length
+            axis_geom = self._append_viewer_geom(
+                self.mujoco.mjtGeom.mjGEOM_ARROW,
+                np.zeros(3, dtype=np.float64),
+                np.zeros(3, dtype=np.float64),
+                identity,
+                color,
+            )
+            if axis_geom is not None:
+                self.mujoco.mjv_connector(
+                    axis_geom,
+                    self.mujoco.mjtGeom.mjGEOM_ARROW,
+                    self.imu_axis_radius,
+                    imu_pos,
+                    endpoint.astype(np.float64),
+                )
+
     def _on_target(self, msg: JointState) -> None:
         if len(msg.name) != len(msg.position):
             self.get_logger().warning("Ignoring target JointState with mismatched name/position length", throttle_duration_sec=1.0)
@@ -389,6 +481,8 @@ class MuJoCoBodyNode(Node):
                 self.get_logger().info("MuJoCo viewer closed; shutting down node")
                 rclpy.shutdown()
                 return
+            with self.viewer_handle.lock():
+                self._update_viewer_debug_visuals()
             self.viewer_handle.sync()
 
         if self.reset_on_fall and self.free_qpos_addr is not None and self.data.qpos[self.free_qpos_addr + 2] < self.fall_height:
