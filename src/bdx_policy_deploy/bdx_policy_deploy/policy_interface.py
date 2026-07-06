@@ -23,7 +23,7 @@ JOINT_NAMES = [
 OBS_DIM = 39
 ACTION_DIM = 10
 ACTION_SCALE = 0.5
-ACTION_CLIP = 1.0
+ACTION_CLIP = 0.0
 
 DEFAULT_JOINT_POS = np.zeros(ACTION_DIM, dtype=np.float32)
 DEFAULT_JOINT_LOWER_LIMITS = np.array(
@@ -193,8 +193,8 @@ def compute_policy_target(
         raise PolicyInterfaceError(f"policy action must have shape ({ACTION_DIM},), got {raw_action.shape}")
     if not np.all(np.isfinite(raw_action)):
         raise PolicyInterfaceError("policy action contains NaN or Inf")
-    if action_clip <= 0.0:
-        raise PolicyInterfaceError("action_clip must be positive")
+    if action_clip < 0.0:
+        raise PolicyInterfaceError("action_clip must be non-negative")
 
     default_pos = as_float32_vector(default_joint_pos, ACTION_DIM, "default_joint_pos")
     lower = as_float32_vector(joint_lower_limits, ACTION_DIM, "joint_lower_limits")
@@ -202,7 +202,10 @@ def compute_policy_target(
     if np.any(lower > upper):
         raise PolicyInterfaceError("joint lower limits must be <= upper limits")
 
-    clipped_action = np.clip(raw_action, -action_clip, action_clip).astype(np.float32)
+    if action_clip == 0.0:
+        clipped_action = raw_action.astype(np.float32)
+    else:
+        clipped_action = np.clip(raw_action, -action_clip, action_clip).astype(np.float32)
     requested_target = (default_pos + clipped_action * np.float32(action_scale)).astype(np.float32)
     target = np.clip(requested_target, lower, upper).astype(np.float32)
     target_was_clipped = bool(np.any(np.not_equal(requested_target, target)))

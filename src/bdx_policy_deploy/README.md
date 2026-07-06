@@ -71,6 +71,8 @@ The launch also starts `joint_pose_socket_bridge_node` by default, which forward
 udp://192.168.31.202:2333
 ```
 
+The joint target publisher runs at 100 Hz by default, and socket forwarding follows that rate unless `socket_rate_limit_hz` is set.
+
 Each packet is newline-terminated JSON with all joint positions in radians. Abbreviated example:
 
 ```json
@@ -81,7 +83,7 @@ Socket options can be overridden at launch:
 
 ```bash
 ros2 launch bdx_policy_deploy mujoco_joint_pose_tune.launch.py \
-  socket_host:=192.168.31.202 socket_port:=2333 socket_protocol:=udp
+  publish_rate_hz:=100.0 socket_host:=192.168.31.202 socket_port:=2333 socket_protocol:=udp
 ```
 
 Disable socket forwarding with:
@@ -140,6 +142,8 @@ disabled
 zero_action
 policy
 ```
+
+For policy deployment, `action_clip: 0.0` disables raw action clipping. Joint targets are still clipped to configured joint limits.
 
 Manual commands:
 

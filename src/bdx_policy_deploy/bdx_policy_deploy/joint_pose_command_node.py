@@ -65,7 +65,7 @@ class JointPoseCommandNode(Node):
         self.declare_parameter("target_joint_state_topic", "/bdx_policy/target_joint_states")
         self.declare_parameter("joint_state_topic", "/joint_states")
         self.declare_parameter("policy_mode_topic", "/bdx_policy/mode")
-        self.declare_parameter("publish_rate_hz", 50.0)
+        self.declare_parameter("publish_rate_hz", 100.0)
         self.declare_parameter("window_width", 1040)
         self.declare_parameter("window_height", 720)
         self.declare_parameter("joint_names", JOINT_NAMES)
@@ -269,7 +269,7 @@ class JointPoseCommandNode(Node):
             rclpy.spin_once(self, timeout_sec=0.0)
             self._draw()
             pygame.display.flip()
-            self.clock.tick(30)
+            self.clock.tick(max(30, int(math.ceil(self.publish_rate_hz))))
 
         pygame.quit()
 

@@ -18,6 +18,7 @@ def generate_launch_description() -> LaunchDescription:
     viewer = LaunchConfiguration("viewer")
     base_height = LaunchConfiguration("base_height")
     step_deg = LaunchConfiguration("step_deg")
+    publish_rate_hz = LaunchConfiguration("publish_rate_hz")
     show_imu_visual = LaunchConfiguration("show_imu_visual")
     imu_axis_length = LaunchConfiguration("imu_axis_length")
     imu_axis_radius = LaunchConfiguration("imu_axis_radius")
@@ -35,6 +36,7 @@ def generate_launch_description() -> LaunchDescription:
             DeclareLaunchArgument("viewer", default_value="true"),
             DeclareLaunchArgument("base_height", default_value="0.33"),
             DeclareLaunchArgument("step_deg", default_value="1.0"),
+            DeclareLaunchArgument("publish_rate_hz", default_value="100.0"),
             DeclareLaunchArgument("show_imu_visual", default_value="true"),
             DeclareLaunchArgument("imu_axis_length", default_value="0.08"),
             DeclareLaunchArgument("imu_axis_radius", default_value="0.004"),
@@ -71,8 +73,10 @@ def generate_launch_description() -> LaunchDescription:
                 name="bdx_joint_pose_command_node",
                 output="screen",
                 parameters=[
+                    config,
                     {
                         "step_deg": step_deg,
+                        "publish_rate_hz": publish_rate_hz,
                         "policy_mode": "disabled",
                         "publish_policy_mode": True,
                     }

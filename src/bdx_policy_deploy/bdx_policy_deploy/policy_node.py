@@ -134,7 +134,7 @@ class BdxPolicyNode(Node):
         self.declare_parameter("policy_decimation", 4)
         self.declare_parameter("policy_rate_hz", 50.0)
         self.declare_parameter("control_rate_hz", 200.0)
-        self.declare_parameter("action_clip", 1.0)
+        self.declare_parameter("action_clip", 0.0)
         self.declare_parameter("action_scale", float(ACTION_SCALE))
         self.declare_parameter("cmd_timeout_s", 0.2)
         self.declare_parameter("sensor_timeout_s", 0.05)
@@ -192,7 +192,7 @@ class BdxPolicyNode(Node):
             raise ValueError("policy_decimation must be positive")
         self.policy_rate_hz = self._positive_float_parameter("policy_rate_hz")
         self.control_rate_hz = self._positive_float_parameter("control_rate_hz")
-        self.action_clip = self._positive_float_parameter("action_clip")
+        self.action_clip = self._non_negative_float_parameter("action_clip")
         self.action_scale = self._positive_float_parameter("action_scale")
         self.cmd_timeout_s = self._positive_float_parameter("cmd_timeout_s")
         self.sensor_timeout_s = self._positive_float_parameter("sensor_timeout_s")
@@ -247,6 +247,12 @@ class BdxPolicyNode(Node):
         value = float(self.get_parameter(name).value)
         if value <= 0.0:
             raise ValueError(f"{name} must be positive")
+        return value
+
+    def _non_negative_float_parameter(self, name: str) -> float:
+        value = float(self.get_parameter(name).value)
+        if value < 0.0:
+            raise ValueError(f"{name} must be non-negative")
         return value
 
     def _vector_parameter(self, name: str, size: int) -> np.ndarray:

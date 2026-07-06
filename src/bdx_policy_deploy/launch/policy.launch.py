@@ -10,7 +10,7 @@ from launch_ros.actions import Node
 def generate_launch_description() -> LaunchDescription:
     package_share = Path(get_package_share_directory("bdx_policy_deploy"))
     default_config = package_share / "config" / "bdx_policy.yaml"
-    default_policy = package_share / "assets" / "policies" / "model_6248.onnx"
+    default_policy = package_share / "assets" / "policies" / "model_20260706.onnx"
 
     config = LaunchConfiguration("config")
     dry_run = LaunchConfiguration("dry_run")

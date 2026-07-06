@@ -84,12 +84,29 @@ def test_compute_policy_target_clips_action_and_joint_limits() -> None:
     lower = np.full(ACTION_DIM, -0.25, dtype=np.float32)
     upper = np.full(ACTION_DIM, 0.25, dtype=np.float32)
 
-    target = compute_policy_target(action, joint_lower_limits=lower, joint_upper_limits=upper)
+    target = compute_policy_target(action, joint_lower_limits=lower, joint_upper_limits=upper, action_clip=1.0)
 
     np.testing.assert_allclose(target.clipped_action[:2], [1.0, -1.0])
     np.testing.assert_allclose(target.requested_target_joint_pos[:2], [0.5, -0.5])
     np.testing.assert_allclose(target.target_joint_pos[:2], [0.25, -0.25])
     assert target.target_was_clipped
+
+
+def test_compute_policy_target_zero_action_clip_disables_action_clipping() -> None:
+    action = np.array([2.0, -2.0] + [0.2] * 8, dtype=np.float32)
+    lower = np.full(ACTION_DIM, -10.0, dtype=np.float32)
+    upper = np.full(ACTION_DIM, 10.0, dtype=np.float32)
+
+    target = compute_policy_target(action, joint_lower_limits=lower, joint_upper_limits=upper, action_clip=0.0)
+
+    np.testing.assert_allclose(target.clipped_action, action)
+    np.testing.assert_allclose(target.requested_target_joint_pos[:2], [1.0, -1.0])
+    assert not target.target_was_clipped
+
+
+def test_compute_policy_target_rejects_negative_action_clip() -> None:
+    with pytest.raises(PolicyInterfaceError, match="non-negative"):
+        compute_policy_target(np.zeros(ACTION_DIM, dtype=np.float32), action_clip=-1.0)
 
 
 def test_compute_pd_torque_matches_sim2sim_formula_and_limits() -> None:
