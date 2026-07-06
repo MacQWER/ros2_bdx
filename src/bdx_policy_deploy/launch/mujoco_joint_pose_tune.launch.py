@@ -3,6 +3,7 @@ from pathlib import Path
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -21,6 +22,11 @@ def generate_launch_description() -> LaunchDescription:
     imu_axis_length = LaunchConfiguration("imu_axis_length")
     imu_axis_radius = LaunchConfiguration("imu_axis_radius")
     imu_marker_radius = LaunchConfiguration("imu_marker_radius")
+    socket_bridge = LaunchConfiguration("socket_bridge")
+    socket_host = LaunchConfiguration("socket_host")
+    socket_port = LaunchConfiguration("socket_port")
+    socket_protocol = LaunchConfiguration("socket_protocol")
+    socket_rate_limit_hz = LaunchConfiguration("socket_rate_limit_hz")
 
     return LaunchDescription(
         [
@@ -33,6 +39,11 @@ def generate_launch_description() -> LaunchDescription:
             DeclareLaunchArgument("imu_axis_length", default_value="0.08"),
             DeclareLaunchArgument("imu_axis_radius", default_value="0.004"),
             DeclareLaunchArgument("imu_marker_radius", default_value="0.018"),
+            DeclareLaunchArgument("socket_bridge", default_value="true"),
+            DeclareLaunchArgument("socket_host", default_value="192.168.31.202"),
+            DeclareLaunchArgument("socket_port", default_value="2333"),
+            DeclareLaunchArgument("socket_protocol", default_value="udp"),
+            DeclareLaunchArgument("socket_rate_limit_hz", default_value="0.0"),
             Node(
                 package="bdx_policy_deploy",
                 executable="mujoco_body_node",
@@ -64,6 +75,23 @@ def generate_launch_description() -> LaunchDescription:
                         "step_deg": step_deg,
                         "policy_mode": "disabled",
                         "publish_policy_mode": True,
+                    }
+                ],
+            ),
+            Node(
+                package="bdx_policy_deploy",
+                executable="joint_pose_socket_bridge_node",
+                name="bdx_joint_pose_socket_bridge_node",
+                output="screen",
+                condition=IfCondition(socket_bridge),
+                parameters=[
+                    config,
+                    {
+                        "target_joint_state_topic": "/bdx_policy/target_joint_states",
+                        "remote_host": socket_host,
+                        "remote_port": socket_port,
+                        "socket_protocol": socket_protocol,
+                        "send_rate_limit_hz": socket_rate_limit_hz,
                     }
                 ],
             ),

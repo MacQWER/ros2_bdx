@@ -10,6 +10,7 @@ install(PROGRAMS
   scripts/mujoco_body_node
   scripts/policy_node
   scripts/joint_pose_command_node
+  scripts/joint_pose_socket_bridge_node
   scripts/pygame_heading_command_node
   DESTINATION lib/${PROJECT_NAME}
 )
@@ -24,6 +25,9 @@ install(DIRECTORY
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(test_policy_interface test/test_policy_interface.py
+    APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  ament_add_pytest_test(test_joint_pose_socket_bridge test/test_joint_pose_socket_bridge.py
     APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
   )
 endif()

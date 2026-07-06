@@ -65,6 +65,31 @@ The joint tuner publishes:
 ```
 
 MuJoCo tracks those targets using the PD logic inside `mujoco_body_node`.
+The launch also starts `joint_pose_socket_bridge_node` by default, which forwards the same target joint positions to:
+
+```text
+udp://192.168.31.202:2333
+```
+
+Each packet is newline-terminated JSON with all joint positions in radians. Abbreviated example:
+
+```json
+{"type":"bdx_joint_pose","seq":0,"stamp":{"sec":0,"nanosec":0},"joint_names":["Left_Hip_Yaw"],"position_rad":[0.0]}
+```
+
+Socket options can be overridden at launch:
+
+```bash
+ros2 launch bdx_policy_deploy mujoco_joint_pose_tune.launch.py \
+  socket_host:=192.168.31.202 socket_port:=2333 socket_protocol:=udp
+```
+
+Disable socket forwarding with:
+
+```bash
+ros2 launch bdx_policy_deploy mujoco_joint_pose_tune.launch.py socket_bridge:=false
+```
+
 The MuJoCo viewer highlights the IMU site by default with a yellow marker, an `IMU` label, and RGB axes:
 
 ```text
