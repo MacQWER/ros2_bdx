@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import math
 from typing import Any
 
@@ -55,6 +56,24 @@ class PygameHeadingCommandNode(Node):
         self.command_pub = self.create_publisher(Twist, self.cmd_vel_topic, 10)
         self.mode_pub = self.create_publisher(String, self.policy_mode_topic, 10)
         self.obs_sub = self.create_subscription(Float32MultiArray, self.observation_topic, self._on_observation, 10)
+        self.real_obs_sub = self.create_subscription(
+            Float32MultiArray,
+            self.real_observation_topic,
+            self._on_real_observation,
+            10,
+        )
+        self.obs_error_sub = self.create_subscription(
+            Float32MultiArray,
+            self.observation_error_topic,
+            self._on_observation_error,
+            10,
+        )
+        self.obs_compare_sub = self.create_subscription(
+            String,
+            self.observation_compare_topic,
+            self._on_observation_compare,
+            10,
+        )
         self.base_sub = self.create_subscription(Float32MultiArray, self.base_state_topic, self._on_base_state, 10)
         self.diag_sub = self.create_subscription(DiagnosticArray, self.diagnostics_topic, self._on_diagnostics, 10)
         self.command_timer = self.create_timer(1.0 / self.publish_rate_hz, self._publish_command)
@@ -66,6 +85,9 @@ class PygameHeadingCommandNode(Node):
         self.current_yaw = 0.0
         self.current_base = np.zeros(14, dtype=np.float32)
         self.last_observation: np.ndarray | None = None
+        self.last_real_observation: np.ndarray | None = None
+        self.last_observation_error: np.ndarray | None = None
+        self.last_observation_compare: dict[str, Any] | None = None
         self.last_diag_message = "waiting"
         self.last_yaw_rate = 0.0
 
@@ -78,6 +100,9 @@ class PygameHeadingCommandNode(Node):
         self.declare_parameter("cmd_vel_topic", "/cmd_vel")
         self.declare_parameter("policy_mode_topic", "/bdx_policy/mode")
         self.declare_parameter("observation_topic", "/bdx_policy/debug/observation")
+        self.declare_parameter("real_observation_topic", "/bdx_policy/debug/real_observation")
+        self.declare_parameter("observation_error_topic", "/bdx_policy/debug/real_minus_sim_observation")
+        self.declare_parameter("observation_compare_topic", "/bdx_policy/debug/observation_compare")
         self.declare_parameter("base_state_topic", "/bdx_mujoco/debug/base_state")
         self.declare_parameter("diagnostics_topic", "/bdx_policy/diagnostics")
         self.declare_parameter("publish_rate_hz", 20.0)
@@ -103,6 +128,9 @@ class PygameHeadingCommandNode(Node):
         self.cmd_vel_topic = str(self.get_parameter("cmd_vel_topic").value)
         self.policy_mode_topic = str(self.get_parameter("policy_mode_topic").value)
         self.observation_topic = str(self.get_parameter("observation_topic").value)
+        self.real_observation_topic = str(self.get_parameter("real_observation_topic").value)
+        self.observation_error_topic = str(self.get_parameter("observation_error_topic").value)
+        self.observation_compare_topic = str(self.get_parameter("observation_compare_topic").value)
         self.base_state_topic = str(self.get_parameter("base_state_topic").value)
         self.diagnostics_topic = str(self.get_parameter("diagnostics_topic").value)
         self.publish_rate_hz = self._positive_float_parameter("publish_rate_hz")
@@ -145,6 +173,24 @@ class PygameHeadingCommandNode(Node):
         obs = np.asarray(msg.data, dtype=np.float32).reshape(-1)
         if obs.shape == (39,) and np.all(np.isfinite(obs)):
             self.last_observation = obs
+
+    def _on_real_observation(self, msg: Float32MultiArray) -> None:
+        obs = np.asarray(msg.data, dtype=np.float32).reshape(-1)
+        if obs.shape == (39,) and np.all(np.isfinite(obs)):
+            self.last_real_observation = obs
+
+    def _on_observation_error(self, msg: Float32MultiArray) -> None:
+        error = np.asarray(msg.data, dtype=np.float32).reshape(-1)
+        if error.shape == (39,) and np.all(np.isfinite(error)):
+            self.last_observation_error = error
+
+    def _on_observation_compare(self, msg: String) -> None:
+        try:
+            payload = json.loads(msg.data)
+        except json.JSONDecodeError:
+            return
+        if isinstance(payload, dict):
+            self.last_observation_compare = payload
 
     def _on_base_state(self, msg: Float32MultiArray) -> None:
         data = np.asarray(msg.data, dtype=np.float32).reshape(-1)
@@ -243,6 +289,37 @@ class PygameHeadingCommandNode(Node):
         self.screen.blit(surface, (x, y))
         return y + 21
 
+    def _draw_vector_values(
+        self,
+        label: str,
+        values: np.ndarray,
+        x: int,
+        y: int,
+        color: tuple[int, int, int] = (210, 210, 210),
+        max_chars: int = 66,
+    ) -> int:
+        line = f"{label}: " + " ".join(f"{value:+.3f}" for value in values)
+        while line:
+            chunk = line[:max_chars]
+            line = line[max_chars:]
+            y = self._draw_small_text(chunk, x, y, color)
+        return y
+
+    def _comparison_text_for_block(self, block_name: str) -> str | None:
+        if self.last_observation_compare is None:
+            return None
+        blocks = self.last_observation_compare.get("blocks")
+        if not isinstance(blocks, dict):
+            return None
+        block = blocks.get(block_name)
+        if not isinstance(block, dict):
+            return None
+        max_abs = block.get("max_abs")
+        rms = block.get("rms")
+        if not isinstance(max_abs, (float, int)) or not isinstance(rms, (float, int)):
+            return None
+        return f"err max/rms: {float(max_abs):.4f} / {float(rms):.4f}"
+
     def _draw(self) -> None:
         pygame = self.pygame
         self.screen.fill((18, 21, 24))
@@ -278,29 +355,47 @@ class PygameHeadingCommandNode(Node):
             self._draw_text("obs: waiting", 24, y, (245, 196, 90))
             return
 
+        compare_text = "real obs: waiting"
+        compare_color = (245, 196, 90)
+        if self.last_real_observation is not None:
+            compare_text = "real obs: received"
+            compare_color = (108, 219, 141)
+        if self.last_observation_compare is not None:
+            max_abs = self.last_observation_compare.get("max_abs")
+            rms = self.last_observation_compare.get("rms")
+            if isinstance(max_abs, (float, int)) and isinstance(rms, (float, int)):
+                compare_text = f"real-vs-sim obs: max_abs={float(max_abs):.4f} rms={float(rms):.4f}"
+                compare_color = (108, 219, 141) if float(max_abs) < 0.05 else (245, 196, 90)
+        y = self._draw_text(compare_text, 24, y, compare_color)
+        y += 4
+
         obs = self.last_observation
-        groups: list[tuple[str, np.ndarray]] = [
-            ("imu_ang_vel_scaled", obs[0:3]),
-            ("projected_gravity", obs[3:6]),
-            ("joint_pos_minus_default", obs[6:16]),
-            ("joint_vel_scaled", obs[16:26]),
-            ("last_action", obs[26:36]),
-            ("policy_command", obs[36:39]),
+        real_obs = self.last_real_observation
+        error_obs = self.last_observation_error
+        groups: list[tuple[str, str, slice]] = [
+            ("imu_ang_vel_scaled", "imu_ang_vel", slice(0, 3)),
+            ("projected_gravity", "projected_gravity", slice(3, 6)),
+            ("joint_pos_minus_default", "joint_pos", slice(6, 16)),
+            ("joint_vel_scaled", "joint_vel", slice(16, 26)),
+            ("last_action", "last_action", slice(26, 36)),
+            ("policy_command", "command", slice(36, 39)),
         ]
 
         left_x = 24
         right_x = 520
         left_y = y
         right_y = y
-        for index, (name, values) in enumerate(groups):
+        for index, (name, block_name, obs_slice) in enumerate(groups):
             x = left_x if index < 3 else right_x
             draw_y = left_y if index < 3 else right_y
             draw_y = self._draw_text(name, x, draw_y, (168, 204, 255))
-            line = " ".join(f"{value:+.3f}" for value in values)
-            while line:
-                chunk = line[:68]
-                line = line[68:]
-                draw_y = self._draw_small_text(chunk, x, draw_y)
+            draw_y = self._draw_vector_values("sim ", obs[obs_slice], x, draw_y)
+            if real_obs is not None:
+                draw_y = self._draw_vector_values("real", real_obs[obs_slice], x, draw_y, (170, 235, 180))
+            if error_obs is not None:
+                comparison_text = self._comparison_text_for_block(block_name)
+                if comparison_text is not None:
+                    draw_y = self._draw_small_text(comparison_text, x, draw_y, (245, 196, 90))
             draw_y += 10
             if index < 3:
                 left_y = draw_y

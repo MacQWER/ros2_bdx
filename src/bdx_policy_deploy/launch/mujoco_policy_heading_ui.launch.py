@@ -3,6 +3,7 @@ from pathlib import Path
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -21,6 +22,9 @@ def generate_launch_description() -> LaunchDescription:
     initial_linear_y = LaunchConfiguration("initial_linear_y")
     initial_heading_deg = LaunchConfiguration("initial_heading_deg")
     initial_policy_mode = LaunchConfiguration("initial_policy_mode")
+    real_obs_compare = LaunchConfiguration("real_obs_compare")
+    real_obs_bind_port = LaunchConfiguration("real_obs_bind_port")
+    real_obs_remote_host = LaunchConfiguration("real_obs_remote_host")
 
     return LaunchDescription(
         [
@@ -32,6 +36,9 @@ def generate_launch_description() -> LaunchDescription:
             DeclareLaunchArgument("initial_linear_y", default_value="0.0"),
             DeclareLaunchArgument("initial_heading_deg", default_value="0.0"),
             DeclareLaunchArgument("initial_policy_mode", default_value="disabled"),
+            DeclareLaunchArgument("real_obs_compare", default_value="true"),
+            DeclareLaunchArgument("real_obs_bind_port", default_value="2333"),
+            DeclareLaunchArgument("real_obs_remote_host", default_value="192.168.31.202"),
             Node(
                 package="bdx_policy_deploy",
                 executable="mujoco_body_node",
@@ -72,6 +79,22 @@ def generate_launch_description() -> LaunchDescription:
                         "initial_heading_deg": initial_heading_deg,
                         "initial_policy_mode": initial_policy_mode,
                     }
+                ],
+            ),
+            Node(
+                package="bdx_policy_deploy",
+                executable="real_observation_socket_compare_node",
+                name="bdx_real_observation_socket_compare_node",
+                output="screen",
+                condition=IfCondition(real_obs_compare),
+                parameters=[
+                    config,
+                    {
+                        "bind_port": real_obs_bind_port,
+                        "remote_host": real_obs_remote_host,
+                        "initial_policy_mode": initial_policy_mode,
+                        "compare_only_in_policy_mode": "zero_action",
+                    },
                 ],
             ),
         ]

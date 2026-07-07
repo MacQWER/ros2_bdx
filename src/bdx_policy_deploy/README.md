@@ -50,6 +50,47 @@ Esc: quit
 
 The policy still receives `[vx, vy, yaw_rate]`; the UI converts target heading to yaw rate.
 
+### Real Observation Compare
+
+`mujoco_policy_heading_ui.launch.py` also starts `real_observation_socket_compare_node` by default. It listens for real robot policy observations from `192.168.31.202` on UDP port `2333` and compares them with the simulated `/bdx_policy/debug/observation` only while policy mode is `zero_action`.
+
+The real robot can send either newline JSON or raw little-endian `float32[39]`.
+
+JSON examples, abbreviated here but `obs` must contain all 39 values:
+
+```json
+{"obs":[0.0,0.0,0.0]}
+```
+
+or named policy-observation components:
+
+```json
+{"imu_ang_vel":[0,0,0],"projected_gravity":[0,0,-1],"joint_pos":[0,0,0,0,0,0,0,0,0,0],"joint_vel":[0,0,0,0,0,0,0,0,0,0],"last_action":[0,0,0,0,0,0,0,0,0,0],"command":[0,0,0]}
+```
+
+Compare outputs:
+
+```text
+/bdx_policy/debug/real_observation
+/bdx_policy/debug/real_minus_sim_observation
+/bdx_policy/debug/observation_compare
+```
+
+The heading UI displays simulated obs, real obs, and per-block real-minus-sim max/RMS error when real observations are available.
+
+Launch overrides:
+
+```bash
+ros2 launch bdx_policy_deploy mujoco_policy_heading_ui.launch.py \
+  initial_policy_mode:=zero_action real_obs_bind_port:=2333 real_obs_remote_host:=192.168.31.202
+```
+
+Disable it with:
+
+```bash
+ros2 launch bdx_policy_deploy mujoco_policy_heading_ui.launch.py real_obs_compare:=false
+```
+
 ## Direct Joint Pose Tuning
 
 Use this mode to hang the robot in simulation at `base_z=0.33` and directly command joint positions. This does not start the policy node.

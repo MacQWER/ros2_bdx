@@ -11,6 +11,7 @@ install(PROGRAMS
   scripts/policy_node
   scripts/joint_pose_command_node
   scripts/joint_pose_socket_bridge_node
+  scripts/real_observation_socket_compare_node
   scripts/pygame_heading_command_node
   DESTINATION lib/${PROJECT_NAME}
 )
@@ -28,6 +29,9 @@ if(BUILD_TESTING)
     APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
   )
   ament_add_pytest_test(test_joint_pose_socket_bridge test/test_joint_pose_socket_bridge.py
+    APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  ament_add_pytest_test(test_real_observation_socket_compare test/test_real_observation_socket_compare.py
     APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
   )
 endif()

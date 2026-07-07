@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+from bdx_policy_deploy.real_observation_socket_compare_node import main
+
+
+if __name__ == "__main__":
+    main()

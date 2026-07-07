@@ -119,3 +119,18 @@ bdx_joint_pose_socket_bridge_node:
     socket_protocol: udp
     send_rate_limit_hz: 0.0
     include_degrees: false
+
+bdx_real_observation_socket_compare_node:
+  ros__parameters:
+    bind_host: 0.0.0.0
+    bind_port: 2333
+    remote_host: 192.168.31.202
+    poll_rate_hz: 200.0
+    stale_timeout_s: 0.5
+    compare_only_in_policy_mode: zero_action
+    initial_policy_mode: disabled
+    sim_observation_topic: /bdx_policy/debug/observation
+    policy_mode_topic: /bdx_policy/mode
+    real_observation_topic: /bdx_policy/debug/real_observation
+    observation_error_topic: /bdx_policy/debug/real_minus_sim_observation
+    comparison_topic: /bdx_policy/debug/observation_compare
