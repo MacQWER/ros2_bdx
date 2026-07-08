@@ -11,7 +11,7 @@ from launch_ros.actions import Node
 def generate_launch_description() -> LaunchDescription:
     package_share = Path(get_package_share_directory("bdx_policy_deploy"))
     default_config = package_share / "config" / "bdx_mujoco_test.yaml"
-    default_policy = package_share / "assets" / "policies" / "model_20260706.onnx"
+    default_policy = package_share / "assets" / "policies" / "bdx_full_body_20260706.onnx"
     default_xml = package_share / "assets" / "mujoco" / "xmls" / "scene.xml"
 
     config = LaunchConfiguration("config")

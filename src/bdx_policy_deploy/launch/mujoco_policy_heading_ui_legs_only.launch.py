@@ -11,7 +11,7 @@ from launch_ros.actions import Node
 def generate_launch_description() -> LaunchDescription:
     package_share = Path(get_package_share_directory("bdx_policy_deploy"))
     default_config = package_share / "config" / "bdx_legs_only.yaml"
-    default_policy = package_share / "assets" / "policies" / "policy.onnx"
+    default_policy = package_share / "assets" / "policies" / "bdx_legs_only_obs_norm.onnx"
     default_xml = package_share / "assets" / "mujoco" / "xmls" / "scene_legs_only.xml"
 
     config = LaunchConfiguration("config")

@@ -1,6 +1,6 @@
 bdx_policy_node:
   ros__parameters:
-    policy_path: package://bdx_policy_deploy/assets/policies/model_20260706.onnx
+    policy_path: package://bdx_policy_deploy/assets/policies/bdx_full_body_20260706.onnx
     dry_run: true
     actuator_mode: position
 
