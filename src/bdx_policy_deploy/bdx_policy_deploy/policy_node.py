@@ -43,6 +43,8 @@ class OnnxPolicy:
         path = resolve_resource_path(model_path)
         if not path.exists():
             raise FileNotFoundError(f"ONNX policy not found: {path}")
+        self.model_path = path
+        self.has_obs_normalizer = self._has_embedded_obs_normalizer(path)
 
         try:
             import onnxruntime as ort
@@ -62,6 +64,14 @@ class OnnxPolicy:
             raise RuntimeError(f"Unexpected ONNX input shape {input_shape}; expected [1, {OBS_DIM}]")
         if len(output_shape) != 2 or output_shape[-1] not in (ACTION_DIM, "action_dim", None):
             raise RuntimeError(f"Unexpected ONNX output shape {output_shape}; expected [1, {ACTION_DIM}]")
+
+    @staticmethod
+    def _has_embedded_obs_normalizer(path: Any) -> bool:
+        try:
+            data = path.read_bytes()
+        except OSError:
+            return False
+        return any(token in data for token in (b"obs_normalizer", b"obs_mean", b"obs_rms"))
 
     def __call__(self, obs: np.ndarray) -> np.ndarray:
         action = self.session.run([self.output_name], {self.input_name: obs.astype(np.float32)})[0]
@@ -122,8 +132,14 @@ class BdxPolicyNode(Node):
             self.control_timer = self.create_timer(1.0 / self.control_rate_hz, self._control_tick)
 
         self.get_logger().info(
-            "BDX policy node started: dry_run=%s, actuator_mode=%s, trigger=%s, policy_rate=%.1f Hz"
-            % (self.dry_run, self.actuator_mode, self.policy_trigger_mode, self.policy_rate_hz)
+            "BDX policy node started: dry_run=%s, actuator_mode=%s, trigger=%s, policy_rate=%.1f Hz, obs_normalizer=%s"
+            % (
+                self.dry_run,
+                self.actuator_mode,
+                self.policy_trigger_mode,
+                self.policy_rate_hz,
+                "embedded" if self.policy.has_obs_normalizer else "not_detected",
+            )
         )
 
     def _declare_parameters(self) -> None:

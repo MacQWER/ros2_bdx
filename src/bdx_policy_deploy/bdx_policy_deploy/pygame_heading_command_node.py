@@ -117,6 +117,7 @@ class PygameHeadingCommandNode(Node):
         self.declare_parameter("linear_y_step", 0.3)
         self.declare_parameter("heading_step_deg", 30.0)
         self.declare_parameter("heading_kp", 1.5)
+        self.declare_parameter("yaw_rate_deadband", 0.005)
 
         self.declare_parameter("linear_x_min", -0.4)
         self.declare_parameter("linear_x_max", 0.7)
@@ -145,6 +146,7 @@ class PygameHeadingCommandNode(Node):
         self.linear_y_step = float(self.get_parameter("linear_y_step").value)
         self.heading_step_rad = math.radians(float(self.get_parameter("heading_step_deg").value))
         self.heading_kp = float(self.get_parameter("heading_kp").value)
+        self.yaw_rate_deadband = float(self.get_parameter("yaw_rate_deadband").value)
 
         self.linear_x_min = float(self.get_parameter("linear_x_min").value)
         self.linear_x_max = float(self.get_parameter("linear_x_max").value)
@@ -160,6 +162,8 @@ class PygameHeadingCommandNode(Node):
             raise ValueError("max_yaw_rate must be positive")
         if self.linear_x_step <= 0.0 or self.linear_y_step <= 0.0:
             raise ValueError("linear_x_step and linear_y_step must be positive")
+        if self.yaw_rate_deadband < 0.0:
+            raise ValueError("yaw_rate_deadband must be non-negative")
         if self.initial_policy_mode not in VALID_POLICY_MODES:
             raise ValueError(f"initial_policy_mode must be one of {VALID_POLICY_MODES}")
 
@@ -208,7 +212,10 @@ class PygameHeadingCommandNode(Node):
 
     def _command_yaw_rate(self) -> float:
         yaw_rate = self.heading_kp * self._heading_error()
-        return float(np.clip(yaw_rate, -self.max_yaw_rate, self.max_yaw_rate))
+        yaw_rate = float(np.clip(yaw_rate, -self.max_yaw_rate, self.max_yaw_rate))
+        if abs(yaw_rate) < self.yaw_rate_deadband:
+            return 0.0
+        return yaw_rate
 
     def _publish_command(self) -> None:
         self.last_yaw_rate = self._command_yaw_rate()

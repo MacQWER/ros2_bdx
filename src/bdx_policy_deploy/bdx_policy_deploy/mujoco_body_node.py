@@ -135,6 +135,8 @@ class MuJoCoBodyNode(Node):
         self.declare_parameter("kp", DEFAULT_KP.tolist())
         self.declare_parameter("kd", DEFAULT_KD.tolist())
         self.declare_parameter("effort_limits", DEFAULT_EFFORT_LIMITS.tolist())
+        self.declare_parameter("armature_default", 0.02)
+        self.declare_parameter("armature_ankle", 0.0042)
 
     def _load_parameters(self) -> None:
         self.xml_path = resolve_resource_path(str(self.get_parameter("xml_path").value))
@@ -190,6 +192,8 @@ class MuJoCoBodyNode(Node):
         self.kp = as_float32_vector(self.get_parameter("kp").value, ACTION_DIM, "kp")
         self.kd = as_float32_vector(self.get_parameter("kd").value, ACTION_DIM, "kd")
         self.effort_limits = as_float32_vector(self.get_parameter("effort_limits").value, ACTION_DIM, "effort_limits")
+        self.armature_default = self._nonnegative_float_parameter("armature_default")
+        self.armature_ankle = self._nonnegative_float_parameter("armature_ankle")
 
     def _positive_float_parameter(self, name: str) -> float:
         value = float(self.get_parameter(name).value)
@@ -247,7 +251,7 @@ class MuJoCoBodyNode(Node):
             self.effort_limits,
         ):
             is_ankle = "Ankle" in joint_name
-            armature = 0.0042 if is_ankle else 0.02
+            armature = self.armature_ankle if is_ankle else self.armature_default
             dof_id = self.model.jnt_dofadr[joint_id]
             self.model.dof_damping[dof_id] = 0.0
             self.model.dof_armature[dof_id] = armature

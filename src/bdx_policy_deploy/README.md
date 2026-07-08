@@ -25,13 +25,32 @@ After rebuilding, source `install/setup.bash` again before running launch files.
 
 ## Policy Test With Heading UI
 
-Launch MuJoCo, policy, and the heading command UI:
+Launch MuJoCo, the default `model_20260706.onnx` policy, and the heading command UI:
 
 ```bash
 ros2 launch bdx_policy_deploy mujoco_policy_heading_ui.launch.py viewer:=true
 ```
 
 The UI starts with velocity zero and mode `disabled`.
+
+### Leg-Only Sim2Sim Profile
+
+To run the same leg-only setup as:
+
+```bash
+cd /home/ubuntu/dev/bdx-rl
+python sim2sim/scripts/sim2sim_bdx.py --config sim2sim/configs/bdx_legs_only.yaml
+```
+
+use:
+
+```bash
+ros2 launch bdx_policy_deploy mujoco_policy_heading_ui_legs_only.launch.py viewer:=true
+```
+
+The leg-only UI starts with `vx=0.0`, `vy=0.0`, heading target `0 deg`, and mode `disabled`.
+Press `3` to enter `policy` mode.
+This profile uses `assets/policies/policy.onnx`; its observation normalizer is embedded in the ONNX graph, so the ROS node publishes the same raw 39-value policy observation used by sim2sim.
 
 Controls:
 
@@ -184,7 +203,7 @@ zero_action
 policy
 ```
 
-For policy deployment, `action_clip: 0.0` disables raw action clipping. Joint targets are still clipped to configured joint limits.
+For the default `model_20260706.onnx` profile, `action_clip: 0.0` disables raw action clipping. For the leg-only sim2sim profile, `action_clip: 100.0` matches `sim2sim/configs/bdx_legs_only.yaml`. Joint targets are still clipped to configured joint limits.
 
 Manual commands:
 
