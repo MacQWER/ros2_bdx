@@ -18,6 +18,8 @@ def generate_launch_description() -> LaunchDescription:
     policy_path = LaunchConfiguration("policy_path")
     xml_path = LaunchConfiguration("xml_path")
     viewer = LaunchConfiguration("viewer")
+    show_com_visual = LaunchConfiguration("show_com_visual")
+    robot_model_alpha = LaunchConfiguration("robot_model_alpha")
     initial_linear_x = LaunchConfiguration("initial_linear_x")
     initial_linear_y = LaunchConfiguration("initial_linear_y")
     initial_heading_deg = LaunchConfiguration("initial_heading_deg")
@@ -32,6 +34,8 @@ def generate_launch_description() -> LaunchDescription:
             DeclareLaunchArgument("policy_path", default_value=str(default_policy)),
             DeclareLaunchArgument("xml_path", default_value=str(default_xml)),
             DeclareLaunchArgument("viewer", default_value="true"),
+            DeclareLaunchArgument("show_com_visual", default_value="true"),
+            DeclareLaunchArgument("robot_model_alpha", default_value="0.35"),
             DeclareLaunchArgument("initial_linear_x", default_value="0.0"),
             DeclareLaunchArgument("initial_linear_y", default_value="0.0"),
             DeclareLaunchArgument("initial_heading_deg", default_value="0.0"),
@@ -49,6 +53,8 @@ def generate_launch_description() -> LaunchDescription:
                     {
                         "xml_path": xml_path,
                         "viewer": viewer,
+                        "show_com_visual": show_com_visual,
+                        "robot_model_alpha": robot_model_alpha,
                         "publish_cmd_vel": False,
                         "initial_policy_mode": initial_policy_mode,
                     },

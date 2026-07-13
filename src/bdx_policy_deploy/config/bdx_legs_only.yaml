@@ -1,6 +1,7 @@
 bdx_policy_node:
   ros__parameters:
-    policy_path: package://bdx_policy_deploy/assets/policies/bdx_legs_only_obs_norm.onnx
+    # policy_path: package://bdx_policy_deploy/assets/policies/bdx_legs_only_obs_norm.onnx
+    policy_path: package://bdx_policy_deploy/assets/policies/policy_20260713.onnx
     dry_run: false
     actuator_mode: position
     policy_trigger_mode: imu_decimation

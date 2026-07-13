@@ -49,11 +49,13 @@ class MuJoCoBodyNode(Node):
         self.actuator_ids = [self._name_to_actuator_id(f"{name}_servo") for name in self.joint_names]
         self.imu_sensor_id = self._name_to_sensor_id("imu_ang_vel")
         self.imu_site_id = self._name_to_site_id("imu")
+        self.com_body_id = self._name_to_body_id(self.com_body_name) if self.show_com_visual else None
         self.free_qpos_addr = self._free_joint_qpos_addr()
         self.free_qvel_addr = self._free_joint_qvel_addr()
 
         self._configure_actuators()
         self._configure_contact_properties()
+        self._configure_robot_visual_alpha()
         self._reset_robot()
         self.frozen_base_qpos: np.ndarray | None = None
         if self.policy_mode == "disabled":
@@ -113,6 +115,10 @@ class MuJoCoBodyNode(Node):
         self.declare_parameter("imu_axis_length", 0.08)
         self.declare_parameter("imu_axis_radius", 0.004)
         self.declare_parameter("imu_marker_radius", 0.018)
+        self.declare_parameter("show_com_visual", False)
+        self.declare_parameter("com_body_name", "base_link")
+        self.declare_parameter("com_marker_radius", 0.025)
+        self.declare_parameter("robot_model_alpha", 1.0)
 
         self.declare_parameter("joint_state_topic", "/joint_states")
         self.declare_parameter("imu_topic", "/imu/data")
@@ -165,6 +171,10 @@ class MuJoCoBodyNode(Node):
         self.imu_axis_length = self._positive_float_parameter("imu_axis_length")
         self.imu_axis_radius = self._positive_float_parameter("imu_axis_radius")
         self.imu_marker_radius = self._positive_float_parameter("imu_marker_radius")
+        self.show_com_visual = bool(self.get_parameter("show_com_visual").value)
+        self.com_body_name = str(self.get_parameter("com_body_name").value)
+        self.com_marker_radius = self._positive_float_parameter("com_marker_radius")
+        self.robot_model_alpha = self._unit_float_parameter("robot_model_alpha")
 
         self.joint_state_topic = str(self.get_parameter("joint_state_topic").value)
         self.imu_topic = str(self.get_parameter("imu_topic").value)
@@ -207,6 +217,12 @@ class MuJoCoBodyNode(Node):
             raise ValueError(f"{name} must be non-negative")
         return value
 
+    def _unit_float_parameter(self, name: str) -> float:
+        value = float(self.get_parameter(name).value)
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f"{name} must be between 0.0 and 1.0")
+        return value
+
     def _name_to_joint_id(self, joint_name: str) -> int:
         joint_id = self.mujoco.mj_name2id(self.model, self.mujoco.mjtObj.mjOBJ_JOINT, joint_name)
         if joint_id < 0:
@@ -230,6 +246,12 @@ class MuJoCoBodyNode(Node):
         if site_id < 0:
             raise ValueError(f"Site not found in MuJoCo model: {site_name}")
         return int(site_id)
+
+    def _name_to_body_id(self, body_name: str) -> int:
+        body_id = self.mujoco.mj_name2id(self.model, self.mujoco.mjtObj.mjOBJ_BODY, body_name)
+        if body_id < 0:
+            raise ValueError(f"Body not found in MuJoCo model: {body_name}")
+        return int(body_id)
 
     def _free_joint_qpos_addr(self) -> int | None:
         for joint_id in range(self.model.njnt):
@@ -273,6 +295,22 @@ class MuJoCoBodyNode(Node):
                 self.model.geom_friction[geom_id] = floor_friction
             elif geom_name is not None and "foot_collision" in geom_name:
                 self.model.geom_friction[geom_id] = foot_friction
+
+    def _configure_robot_visual_alpha(self) -> None:
+        """Make robot render meshes transparent without affecting collision geoms or the floor."""
+        visual_group = 2
+        material_ids: set[int] = set()
+        for geom_id in range(self.model.ngeom):
+            if int(self.model.geom_group[geom_id]) != visual_group:
+                continue
+            material_id = int(self.model.geom_matid[geom_id])
+            if material_id >= 0:
+                material_ids.add(material_id)
+            else:
+                self.model.geom_rgba[geom_id, 3] = self.robot_model_alpha
+
+        for material_id in material_ids:
+            self.model.mat_rgba[material_id, 3] = self.robot_model_alpha
 
     def _reset_robot(self) -> None:
         self.mujoco.mj_resetData(self.model, self.data)
@@ -350,6 +388,31 @@ class MuJoCoBodyNode(Node):
 
         scene = self.viewer_handle.user_scn
         scene.ngeom = 0
+        if not self.show_imu_visual and not self.show_com_visual:
+            return
+
+        identity = np.eye(3, dtype=np.float64).reshape(9)
+
+        if self.com_body_id is not None:
+            com_pos = self.data.subtree_com[self.com_body_id].astype(np.float64).copy()
+            self._append_viewer_geom(
+                self.mujoco.mjtGeom.mjGEOM_SPHERE,
+                np.full(3, self.com_marker_radius, dtype=np.float64),
+                com_pos,
+                identity,
+                np.array([1.0, 0.05, 0.65, 1.0], dtype=np.float32),
+                "COM",
+            )
+            self._append_viewer_geom(
+                self.mujoco.mjtGeom.mjGEOM_LABEL,
+                np.zeros(3, dtype=np.float64),
+                com_pos
+                + np.array([0.0, 0.0, self.com_marker_radius * 1.8], dtype=np.float64),
+                identity,
+                np.array([1.0, 1.0, 1.0, 1.0], dtype=np.float32),
+                "COM",
+            )
+
         if not self.show_imu_visual:
             return
 
@@ -360,7 +423,6 @@ class MuJoCoBodyNode(Node):
             .astype(np.float64)
             .copy()
         )
-        identity = np.eye(3, dtype=np.float64).reshape(9)
         marker_size = np.full(3, self.imu_marker_radius, dtype=np.float64)
         label_pos = imu_pos + np.array(
             [0.0, 0.0, self.imu_marker_radius * 2.0],

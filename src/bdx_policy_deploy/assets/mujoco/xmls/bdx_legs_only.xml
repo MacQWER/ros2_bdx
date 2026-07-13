@@ -30,6 +30,11 @@
     <mesh name="Base_Top_Clamp" file="Base_Top_Clamp.stl" scale="0.001 0.001 0.001" />
     <mesh name="Left_Holder" file="Left_Holder.stl" scale="0.001 0.001 0.001" />
     <mesh name="Right_Holder" file="Right_Holder.stl" scale="0.001 0.001 0.001" />
+    <mesh name="Top_Base_Frame" file="Top_Base_Frame.stl" scale="0.001 0.001 0.001" />
+    <mesh name="Front_Support" file="Front_Support.stl" scale="0.001 0.001 0.001" />
+    <mesh name="Battery_Holder" file="Battery_Holder.stl" scale="0.001 0.001 0.001" />
+    <mesh name="Battery" file="Battery.stl" scale="0.001 0.001 0.001" />
+    <mesh name="Back_Support" file="Back_Support.stl" scale="0.001 0.001 0.001" />
     <mesh name="Left_Hip_Top_Holder" file="Left_Hip_Top_Holder.stl" scale="0.001 0.001 0.001" />
     <mesh name="Left_Hip_Roll_Motor" file="Left_Hip_Roll_Motor.stl" scale="0.001 0.001 0.001" />
     <mesh name="Left_Hip_Roll_Connector" file="Left_Hip_Roll_Connector.stl" scale="0.001 0.001 0.001" />
@@ -255,9 +260,29 @@
         <inertial pos="0.0654654 0.0202797 9.29671e-05" mass="0.0360922" fullinertia="3.2e-05 0.000147 0.000124 -1.7e-05 2.9e-05 1e-06" />
         <geom class="visual" mesh="Left_Holder" material="black" pos="0.042349 -0.091047 -0.150304" />
       </body>
+      <body name="Top_Base_Frame" pos="-0.032533 0.084396 0.175919">
+        <inertial pos="0.0876581 -0.084346 0.00853271" mass="0.119509" fullinertia="0.00068 0.000477 0.001154 0 -5e-06 0" />
+        <geom class="visual" mesh="Top_Base_Frame" material="black" pos="0.032533 -0.084396 -0.175919" />
+      </body>
+      <body name="Front_Support" pos="0.104552 0.01005 0.079856">
+        <inertial pos="0.00267539 -0.01 -0.0165269" mass="0.184244" fullinertia="0.001929 0.000901 0.001041 0 1.1e-05 0" />
+        <geom class="visual" mesh="Front_Support" material="black" pos="-0.104552 -0.01005 -0.079856" />
+      </body>
       <body name="Right_Holder" pos="-0.042349 -0.090947 0.150304">
         <inertial pos="0.0661003 -0.0203252 -0.000478187" mass="0.0361128" fullinertia="3.2e-05 0.000147 0.000124 1.7e-05 2.9e-05 -1e-06" />
         <geom class="visual" mesh="Right_Holder" material="black" pos="0.042349 0.090947 -0.150304" />
+      </body>
+      <body name="Battery_Holder" pos="-0.042025 5e-05 0.002134">
+        <inertial pos="-0.0112596 -1.37984e-08 0.0742143" mass="0.162092" fullinertia="0.000431 0.000313 0.000128 -0 1e-05 -0" />
+        <geom class="visual" mesh="Battery_Holder" material="black" pos="0.042025 -5e-05 -0.002134" />
+        <body name="Battery" pos="0.091613 -0.02775 0.230592">
+          <inertial pos="-0.147625 0.02745 -0.131786" mass="1.07309" fullinertia="0.002821 0.002743 0.001123 -0 -3.4e-05 0" />
+          <geom class="visual" mesh="Battery" material="black" pos="-0.049588 0.0277 -0.232726" />
+        </body>
+        <body name="Back_Support" pos="-0.018024 0 0">
+          <inertial pos="-0.0161042 0.00083864 0.0763859" mass="0.198185" fullinertia="0.000997 0.00052 0.000641 1e-06 5.1e-05 -4e-06" />
+          <geom class="visual" mesh="Back_Support" material="black" pos="0.060049 -5e-05 -0.002134" />
+        </body>
       </body>
       <freejoint />
     </body>
