@@ -1,7 +1,7 @@
 bdx_policy_node:
   ros__parameters:
     # policy_path: package://bdx_policy_deploy/assets/policies/bdx_legs_only_obs_norm.onnx
-    policy_path: package://bdx_policy_deploy/assets/policies/policy_20260713.onnx
+    policy_path: package://bdx_policy_deploy/assets/policies/policy_20260714.onnx
     dry_run: false
     actuator_mode: position
     policy_trigger_mode: imu_decimation
@@ -99,6 +99,8 @@ bdx_mujoco_body_node:
     floor_friction: 0.8
     torsional_friction: 0.005
     rolling_friction: 0.0001
+    # Shift the physical CoM along base_link +Z; positive values move it upward.
+    com_z_offset: 0.0
 
     joint_names:
       - Left_Hip_Yaw

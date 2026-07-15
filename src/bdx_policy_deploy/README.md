@@ -48,6 +48,56 @@ use:
 ros2 launch bdx_policy_deploy mujoco_policy_heading_ui_legs_only.launch.py viewer:=true
 ```
 
+#### Center-of-Mass Offset and Visualization
+
+`com_z_offset` changes the physical MuJoCo center of mass along `base_link` Z; it does not only
+move the visual marker. Positive values move it upward, negative values move it downward, and
+`0.0` uses the original center of mass.
+
+For a persistent value, edit `config/bdx_legs_only.yaml`:
+
+```yaml
+bdx_mujoco_body_node:
+  ros__parameters:
+    com_z_offset: 0.0
+```
+
+Then rebuild, source the workspace, and launch without a `com_z_offset` argument:
+
+```bash
+cd /home/ubuntu/dev/ros2_ws
+colcon build --packages-select bdx_policy_deploy
+source install/setup.bash
+ros2 launch bdx_policy_deploy mujoco_policy_heading_ui_legs_only.launch.py viewer:=true
+```
+
+When no launch override is supplied, the launch file keeps the value from the YAML config. To
+temporarily override the YAML value for one run, pass the launch argument explicitly:
+
+```bash
+ros2 launch bdx_policy_deploy mujoco_policy_heading_ui_legs_only.launch.py \
+  viewer:=true com_z_offset:=0.02
+```
+
+The explicit launch argument has higher priority than the YAML value. You can also tune the value
+while the simulation is running:
+
+```bash
+ros2 param set /bdx_mujoco_body_node com_z_offset 0.03
+```
+
+The pink sphere labeled `COM` shows the resulting live center of mass. Use a smaller
+`robot_model_alpha` to make the robot more transparent:
+
+```bash
+ros2 launch bdx_policy_deploy mujoco_policy_heading_ui_legs_only.launch.py \
+  viewer:=true show_com_visual:=true robot_model_alpha:=0.1
+```
+
+`disabled` mode fixes the base, but modes `zero_action` and `policy` release it. A physical CoM
+offset can therefore destabilize those modes because their controller and policy were tuned for
+the original inertial model.
+
 The leg-only UI starts with `vx=0.0`, `vy=0.0`, heading target `0 deg`, and mode `disabled`.
 Press `3` to enter `policy` mode.
 This profile uses `assets/policies/bdx_legs_only_obs_norm.onnx`; its observation normalizer is embedded in the ONNX graph, so the ROS node publishes the same raw 39-value policy observation used by sim2sim.

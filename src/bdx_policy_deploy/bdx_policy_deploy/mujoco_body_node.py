@@ -5,7 +5,9 @@ from typing import Any
 from geometry_msgs.msg import Twist
 import numpy as np
 import rclpy
+from rcl_interfaces.msg import SetParametersResult
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from sensor_msgs.msg import Imu, JointState
 from std_msgs.msg import Float32MultiArray, Float64MultiArray, String
 
@@ -49,10 +51,12 @@ class MuJoCoBodyNode(Node):
         self.actuator_ids = [self._name_to_actuator_id(f"{name}_servo") for name in self.joint_names]
         self.imu_sensor_id = self._name_to_sensor_id("imu_ang_vel")
         self.imu_site_id = self._name_to_site_id("imu")
-        self.com_body_id = self._name_to_body_id(self.com_body_name) if self.show_com_visual else None
+        self.com_body_id = self._name_to_body_id(self.com_body_name)
         self.free_qpos_addr = self._free_joint_qpos_addr()
         self.free_qvel_addr = self._free_joint_qvel_addr()
 
+        self._prepare_com_offset()
+        self._set_com_z_offset(self.com_z_offset)
         self._configure_actuators()
         self._configure_contact_properties()
         self._configure_robot_visual_alpha()
@@ -87,12 +91,14 @@ class MuJoCoBodyNode(Node):
         self.target_sub = self.create_subscription(JointState, self.target_joint_state_topic, self._on_target, 10)
         self.torque_sub = self.create_subscription(Float64MultiArray, self.torque_command_topic, self._on_torque, 10)
         self.mode_sub = self.create_subscription(String, self.policy_mode_topic, self._on_policy_mode, 10)
+        self.add_on_set_parameters_callback(self._on_set_parameters)
 
         self.sim_timer = self.create_timer(self.sim_dt, self._sim_tick)
 
         self.get_logger().info(
-            "MuJoCo body node started: xml=%s, control_mode=%s, sim_dt=%.4f, viewer=%s"
-            % (self.xml_path, self.control_mode, self.sim_dt, self.viewer)
+            "MuJoCo body node started: xml=%s, control_mode=%s, sim_dt=%.4f, "
+            "viewer=%s, com_z_offset=%.4f m"
+            % (self.xml_path, self.control_mode, self.sim_dt, self.viewer, self.com_z_offset)
         )
 
     def _declare_parameters(self) -> None:
@@ -118,6 +124,7 @@ class MuJoCoBodyNode(Node):
         self.declare_parameter("show_com_visual", False)
         self.declare_parameter("com_body_name", "base_link")
         self.declare_parameter("com_marker_radius", 0.025)
+        self.declare_parameter("com_z_offset", 0.0)
         self.declare_parameter("robot_model_alpha", 1.0)
 
         self.declare_parameter("joint_state_topic", "/joint_states")
@@ -174,6 +181,7 @@ class MuJoCoBodyNode(Node):
         self.show_com_visual = bool(self.get_parameter("show_com_visual").value)
         self.com_body_name = str(self.get_parameter("com_body_name").value)
         self.com_marker_radius = self._positive_float_parameter("com_marker_radius")
+        self.com_z_offset = self._finite_float_parameter("com_z_offset")
         self.robot_model_alpha = self._unit_float_parameter("robot_model_alpha")
 
         self.joint_state_topic = str(self.get_parameter("joint_state_topic").value)
@@ -221,6 +229,12 @@ class MuJoCoBodyNode(Node):
         value = float(self.get_parameter(name).value)
         if not 0.0 <= value <= 1.0:
             raise ValueError(f"{name} must be between 0.0 and 1.0")
+        return value
+
+    def _finite_float_parameter(self, name: str) -> float:
+        value = float(self.get_parameter(name).value)
+        if not np.isfinite(value):
+            raise ValueError(f"{name} must be finite")
         return value
 
     def _name_to_joint_id(self, joint_name: str) -> int:
@@ -311,6 +325,67 @@ class MuJoCoBodyNode(Node):
 
         for material_id in material_ids:
             self.model.mat_rgba[material_id, 3] = self.robot_model_alpha
+
+    def _prepare_com_offset(self) -> None:
+        """Cache subtree inertias and root-z directions for absolute CoM offset updates."""
+        self.com_offset_body_ids = np.empty(0, dtype=np.int32)
+        self.com_offset_ipos = np.empty((0, 3), dtype=np.float64)
+        self.com_offset_directions = np.empty((0, 3), dtype=np.float64)
+        self.applied_com_z_offset = 0.0
+        if self.com_body_id is None:
+            return
+
+        body_ids = []
+        for body_id in range(self.model.nbody):
+            ancestor_id = body_id
+            while ancestor_id != 0 and ancestor_id != self.com_body_id:
+                ancestor_id = int(self.model.body_parentid[ancestor_id])
+            if ancestor_id == self.com_body_id and self.model.body_mass[body_id] > 0.0:
+                body_ids.append(body_id)
+
+        self.mujoco.mj_forward(self.model, self.data)
+        root_z_world = self.data.xmat[self.com_body_id].reshape(3, 3)[:, 2].copy()
+        self.com_offset_body_ids = np.asarray(body_ids, dtype=np.int32)
+        self.com_offset_ipos = self.model.body_ipos[self.com_offset_body_ids].copy()
+        self.com_offset_directions = np.asarray(
+            [
+                self.data.xmat[body_id].reshape(3, 3).T @ root_z_world
+                for body_id in self.com_offset_body_ids
+            ],
+            dtype=np.float64,
+        )
+
+    def _set_com_z_offset(self, offset: float) -> None:
+        if self.com_offset_body_ids.size == 0:
+            return
+        if offset == self.applied_com_z_offset:
+            self.com_z_offset = offset
+            return
+        self.model.body_ipos[self.com_offset_body_ids] = (
+            self.com_offset_ipos + self.com_offset_directions * offset
+        )
+        # Recompute model constants after changing inertial positions without disturbing live simulation data.
+        self.mujoco.mj_setConst(self.model, self.mujoco.MjData(self.model))
+        self.mujoco.mj_forward(self.model, self.data)
+        self.applied_com_z_offset = offset
+        self.com_z_offset = offset
+
+    def _on_set_parameters(self, parameters: list[Parameter]) -> SetParametersResult:
+        requested_offset = self.com_z_offset
+        for parameter in parameters:
+            if parameter.name != "com_z_offset":
+                continue
+            try:
+                requested_offset = float(parameter.value)
+            except (TypeError, ValueError):
+                return SetParametersResult(successful=False, reason="com_z_offset must be a number")
+            if not np.isfinite(requested_offset):
+                return SetParametersResult(successful=False, reason="com_z_offset must be finite")
+
+        if requested_offset != self.com_z_offset:
+            self._set_com_z_offset(requested_offset)
+            self.get_logger().info(f"Updated inertial CoM z offset to {requested_offset:.4f} m")
+        return SetParametersResult(successful=True)
 
     def _reset_robot(self) -> None:
         self.mujoco.mj_resetData(self.model, self.data)

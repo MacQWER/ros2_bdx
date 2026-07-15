@@ -2,10 +2,47 @@ from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
+
+def _launch_mujoco_body_node(
+    context,
+    *,
+    config: LaunchConfiguration,
+    xml_path: LaunchConfiguration,
+    viewer: LaunchConfiguration,
+    show_com_visual: LaunchConfiguration,
+    com_z_offset: LaunchConfiguration,
+    robot_model_alpha: LaunchConfiguration,
+    initial_policy_mode: LaunchConfiguration,
+) -> list[Node]:
+    overrides = {
+        "xml_path": xml_path,
+        "viewer": viewer,
+        "show_com_visual": show_com_visual,
+        "robot_model_alpha": robot_model_alpha,
+        "publish_cmd_vel": False,
+        "initial_policy_mode": initial_policy_mode,
+    }
+    com_z_offset_value = com_z_offset.perform(context).strip()
+    if com_z_offset_value:
+        try:
+            overrides["com_z_offset"] = float(com_z_offset_value)
+        except ValueError as exc:
+            raise RuntimeError("com_z_offset must be a floating-point number") from exc
+
+    return [
+        Node(
+            package="bdx_policy_deploy",
+            executable="mujoco_body_node",
+            name="bdx_mujoco_body_node",
+            output="screen",
+            parameters=[config, overrides],
+        )
+    ]
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -19,6 +56,7 @@ def generate_launch_description() -> LaunchDescription:
     xml_path = LaunchConfiguration("xml_path")
     viewer = LaunchConfiguration("viewer")
     show_com_visual = LaunchConfiguration("show_com_visual")
+    com_z_offset = LaunchConfiguration("com_z_offset")
     robot_model_alpha = LaunchConfiguration("robot_model_alpha")
     initial_linear_x = LaunchConfiguration("initial_linear_x")
     initial_linear_y = LaunchConfiguration("initial_linear_y")
@@ -35,6 +73,11 @@ def generate_launch_description() -> LaunchDescription:
             DeclareLaunchArgument("xml_path", default_value=str(default_xml)),
             DeclareLaunchArgument("viewer", default_value="true"),
             DeclareLaunchArgument("show_com_visual", default_value="true"),
+            DeclareLaunchArgument(
+                "com_z_offset",
+                default_value="",
+                description="Optional override; leave empty to use the value from the YAML config",
+            ),
             DeclareLaunchArgument("robot_model_alpha", default_value="0.35"),
             DeclareLaunchArgument("initial_linear_x", default_value="0.0"),
             DeclareLaunchArgument("initial_linear_y", default_value="0.0"),
@@ -43,22 +86,17 @@ def generate_launch_description() -> LaunchDescription:
             DeclareLaunchArgument("real_obs_compare", default_value="true"),
             DeclareLaunchArgument("real_obs_bind_port", default_value="2333"),
             DeclareLaunchArgument("real_obs_remote_host", default_value="192.168.31.202"),
-            Node(
-                package="bdx_policy_deploy",
-                executable="mujoco_body_node",
-                name="bdx_mujoco_body_node",
-                output="screen",
-                parameters=[
-                    config,
-                    {
-                        "xml_path": xml_path,
-                        "viewer": viewer,
-                        "show_com_visual": show_com_visual,
-                        "robot_model_alpha": robot_model_alpha,
-                        "publish_cmd_vel": False,
-                        "initial_policy_mode": initial_policy_mode,
-                    },
-                ],
+            OpaqueFunction(
+                function=_launch_mujoco_body_node,
+                kwargs={
+                    "config": config,
+                    "xml_path": xml_path,
+                    "viewer": viewer,
+                    "show_com_visual": show_com_visual,
+                    "com_z_offset": com_z_offset,
+                    "robot_model_alpha": robot_model_alpha,
+                    "initial_policy_mode": initial_policy_mode,
+                },
             ),
             Node(
                 package="bdx_policy_deploy",
