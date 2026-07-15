@@ -276,7 +276,7 @@
         <inertial pos="-0.0112596 -1.37984e-08 0.0742143" mass="0.162092" fullinertia="0.000431 0.000313 0.000128 -0 1e-05 -0" />
         <geom class="visual" mesh="Battery_Holder" material="black" pos="0.042025 -5e-05 -0.002134" />
         <body name="Battery" pos="0.091613 -0.02775 0.230592">
-          <inertial pos="-0.147625 0.02745 -0.131786" mass="1.07309" fullinertia="0.002821 0.002743 0.001123 -0 -3.4e-05 0" />
+          <inertial pos="-0.147625 0.02745 -0.131786" mass="1.272" fullinertia="0.002821 0.002743 0.001123 -0 -3.4e-05 0" />
           <geom class="visual" mesh="Battery" material="black" pos="-0.049588 0.0277 -0.232726" />
         </body>
         <body name="Back_Support" pos="-0.018024 0 0">
